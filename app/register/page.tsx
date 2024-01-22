@@ -1,13 +1,13 @@
 import AcmeLogo from '@/app/ui/acme-logo';
-import LoginForm from '@/app/ui/login-form';
+import RegisterForm from '@/app/ui/register-form';
 import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Login',
+  title: 'Register',
 };
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <main className="flex items-center justify-center md:h-screen">
       <div className="relative mx-auto flex w-full max-w-[400px] flex-col space-y-2.5 p-4 md:-mt-32">
@@ -18,11 +18,11 @@ export default function LoginPage() {
             </Link>
           </div>
         </div>
-        <LoginForm />
+        <RegisterForm />
         <p className="text-center">
-          {"Don't have an account? "}
-          <Link href="/register" className="text-blue-500">
-            Register
+          {'Already have an account? '}
+          <Link href="/login" className="mb-0 pb-0 text-blue-500">
+            Log in
           </Link>
         </p>
       </div>

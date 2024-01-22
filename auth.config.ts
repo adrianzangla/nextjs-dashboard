@@ -1,6 +1,4 @@
 import { NextAuthConfig } from 'next-auth';
-import Credentials from 'next-auth/providers/credentials';
-import { z } from 'zod';
 
 export const authConfig = {
   pages: {
@@ -10,6 +8,10 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
+      const isOnRegister = nextUrl.pathname.startsWith('/register');
+      if (isOnRegister && isLoggedIn) {
+        return Response.redirect(new URL('/dashboard', nextUrl));
+      }
       if (isOnDashboard) {
         if (isLoggedIn) return true;
         return false;

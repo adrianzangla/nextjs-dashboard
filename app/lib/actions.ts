@@ -6,6 +6,9 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
+import bcrypt from 'bcrypt';
+import { users } from './placeholder-data';
+import { getUser } from '@/app/lib/data';
 
 const FormSchema = z.object({
   id: z.string(),
@@ -97,7 +100,6 @@ export async function updateInvoice(
 }
 
 export async function deleteInvoice(id: string) {
-  // throw new Error('Database Error: Failed to Delete Invoice');
   try {
     await sql`DELETE FROM invoices WHERE id = ${id}`;
   } catch (error) {
@@ -125,4 +127,84 @@ export async function authenticate(
     }
     throw error;
   }
+}
+
+const UserSchema = z.object({
+  id: z.string(),
+  name: z.string({
+    invalid_type_error: 'Please enter a name',
+  }),
+  email: z
+    .string({
+      invalid_type_error: 'Please enter an email',
+    })
+    .email(),
+  password: z
+    .string({
+      invalid_type_error: 'Please enter a password',
+    })
+    .min(6),
+  confirmPassword: z
+    .string({
+      invalid_type_error: 'Please confirm your password',
+    })
+    .min(6),
+});
+
+const CreateUser = UserSchema.omit({ id: true });
+
+export type UserState = {
+  errors?: {
+    name?: string[];
+    email?: string[];
+    password?: string[];
+    confirmPassword?: string[];
+  };
+  message?: string | null;
+};
+
+export async function createUser(prevState: UserState, formData: FormData) {
+  const validateFields = CreateUser.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+    confirmPassword: formData.get('confirmPassword'),
+  });
+  if (!validateFields.success) {
+    return {
+      errors: validateFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Create User',
+    };
+  }
+  const { name, email, password } = validateFields.data;
+  try {
+    if (await getUser(email)) {
+      return {
+        message: 'Email already in use',
+      };
+    }
+  } catch (error) {
+    return {
+      message: 'Database Error: Failed to Create User',
+    };
+  }
+  if (password !== formData.get('confirmPassword')) {
+    return {
+      message: "Passwords don't match",
+    };
+  }
+  const saltRounds = 10;
+  const salt = bcrypt.genSaltSync(saltRounds);
+  const hashedPassword = bcrypt.hashSync(password, salt);
+  try {
+    await sql`
+    INSERT INTO users (name, email, password)
+    VALUES (${name}, ${email}, ${hashedPassword})
+  `;
+  } catch (error) {
+    return {
+      message: 'Database Error: Failed to Create User.',
+    };
+  }
+  await signIn('credentials', { email, password });
 }
