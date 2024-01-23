@@ -207,4 +207,8 @@ export async function createUser(prevState: UserState, formData: FormData) {
     };
   }
   await signIn('credentials', { email, password });
+  return {
+    message: null,
+    errors: {},
+  };
 }
