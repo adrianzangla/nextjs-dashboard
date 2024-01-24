@@ -131,34 +131,26 @@ export async function authenticate(
 
 const UserSchema = z.object({
   id: z.string(),
-  name: z.string({
-    invalid_type_error: 'Please enter a name',
-  }),
-  email: z
-    .string({
-      invalid_type_error: 'Please enter an email',
-    })
-    .email(),
-  password: z
-    .string({
-      invalid_type_error: 'Please enter a password',
-    })
-    .min(6),
-  confirmPassword: z
-    .string({
-      invalid_type_error: 'Please confirm your password',
-    })
-    .min(6),
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email({ message: 'Invalid email address' }),
+  password: z.string().min(6, 'Password must be at least 6 characters long'),
+  confirm: z.string(),
 });
 
-const CreateUser = UserSchema.omit({ id: true });
+const CreateUser = UserSchema.omit({ id: true }).refine(
+  (data) => data.password === data.confirm,
+  {
+    message: "Passwords don't match",
+    path: ['confirm'],
+  },
+);
 
 export type UserState = {
   errors?: {
     name?: string[];
     email?: string[];
     password?: string[];
-    confirmPassword?: string[];
+    confirm?: string[];
   };
   message?: string | null;
 };
@@ -168,7 +160,7 @@ export async function createUser(prevState: UserState, formData: FormData) {
     name: formData.get('name'),
     email: formData.get('email'),
     password: formData.get('password'),
-    confirmPassword: formData.get('confirmPassword'),
+    confirm: formData.get('confirm'),
   });
   if (!validateFields.success) {
     return {
@@ -180,17 +172,12 @@ export async function createUser(prevState: UserState, formData: FormData) {
   try {
     if (await getUser(email)) {
       return {
-        message: 'Email already in use',
+        errors: { email: ['Email already in use'] },
       };
     }
   } catch (error) {
     return {
       message: 'Database Error: Failed to Create User',
-    };
-  }
-  if (password !== formData.get('confirmPassword')) {
-    return {
-      message: "Passwords don't match",
     };
   }
   const saltRounds = 10;
@@ -211,4 +198,98 @@ export async function createUser(prevState: UserState, formData: FormData) {
     message: null,
     errors: {},
   };
+}
+
+const CustomerFormSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email({ message: 'Invalid email address' }),
+  imageUrl: z.string().url({ message: 'Invalid url' }),
+});
+
+const CreateCustomer = CustomerFormSchema.omit({ id: true });
+
+export type CustomerState = {
+  errors: {
+    name?: string[];
+    email?: string[];
+    imageUrl?: string[];
+  };
+  message?: string | null;
+};
+
+export async function createCustomer(
+  prevState: CustomerState,
+  formData: FormData,
+) {
+  const validateFields = CreateCustomer.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    imageUrl: formData.get('imageUrl'),
+  });
+  if (!validateFields.success) {
+    return {
+      ...prevState,
+      errors: validateFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Create Customer.',
+    };
+  }
+  const { name, email, imageUrl } = validateFields.data;
+  try {
+    await sql`
+      INSERT INTO customers (name, email, image_url) VALUES (${name}, ${email}, ${imageUrl}) ;
+    `;
+  } catch (error) {
+    return {
+      ...prevState,
+      message: 'Database Error: Failed to Create Customer.',
+    };
+  }
+  revalidatePath('/dashboard/customers');
+  redirect('/dashboard/customers');
+}
+
+export async function updateCustomer(
+  id: string,
+  prevState: CustomerState,
+  formData: FormData,
+) {
+  const validateFields = CreateCustomer.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    imageUrl: formData.get('imageUrl'),
+  });
+  if (!validateFields.success) {
+    return {
+      ...prevState,
+      errors: validateFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Update Customer',
+    };
+  }
+  const { name, email, imageUrl } = validateFields.data;
+  try {
+    await sql`
+    UPDATE customers
+    SET name = ${name}, email = ${email}, imageUrl = ${imageUrl}
+    WHERE id = ${id}
+  `;
+  } catch (error) {
+    return {
+      ...prevState,
+      error: 'Database Error: Failed to Update Customer.',
+    };
+  }
+  revalidatePath('/dashboard/customers');
+  redirect('/dashboard/customers');
+}
+
+export async function deleteCustomer(id: string) {
+  try {
+    await sql`DELETE FROM customers WHERE id = ${id}`;
+  } catch (error) {
+    return {
+      error: 'Database Error: Failed to Delete Customer.',
+    };
+  }
+  revalidatePath('/dashboard/customers');
 }
