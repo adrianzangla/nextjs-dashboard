@@ -9,3 +9,6 @@ For more information, see the [course curriculum](https://nextjs.org/learn) on t
 - Register Form
 - Customer CRUD operations
 - Bug fixes
+
+You can check the final project [here]([https://nextjs.org/learn](https://nextjs-dashboard-green-three-61.vercel.app)https://nextjs-dashboard-green-three-61.vercel.app)
+Since there is no restrictions to user registration, anyone could make something funny to the data. Let me know and I will seed it again.
